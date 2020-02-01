@@ -1,0 +1,94 @@
+## ---------------------------
+##
+## Script name: Profile Remover
+##
+## Purpose of script: Delete User Proile Folder and Registry Keys
+##
+## Author: Tyrell M Jones
+##
+## Date Created: 2020-1-14
+##
+## Copyright (c) Tyrell M Jones, 2019
+## Email: tyrell@nuramen.com
+## ---------------------------
+
+#import modules
+import os,winreg, time, subprocess
+
+#-------Functions----------------------
+#Get Current Local date and time
+def get_current_datetime():
+    strftime = time.strftime('%b %d %Y %H:%M:%S', time.localtime())
+    return strftime
+
+#Check Open Process on machine
+def check_running_processes():
+    pass
+
+#Create Profile list Keys with sid
+def create_key_wsid(ind):
+    base_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList')
+    user_sid = winreg.EnumKey(base_key,ind)
+    new_key = winreg.OpenKey(base_key, user_sid)
+    return new_key
+
+#get profile path
+def get_profile_path(key):
+    read_value = winreg.QueryValueEx(key, 'ProfileImagePath')
+    read_value = read_value[0]
+    return read_value
+
+#--------Application----------------------
+#Delete User Profiles Functions
+def delete_user_profiles():
+    # Variables
+    i = 0
+    waiting_input = 'e'
+    try:
+        #While Loop
+        while True:
+            #Create user key with SID
+            user_key = create_key_wsid(i)
+            #Get profile Image path and set as user folder path
+            user_folder_path = get_profile_path(user_key)
+            #While Waiting Valid Input
+            while waiting_input:
+                # Check for user Confirmation
+                user_confirmation = input(f'Would you like to delete {user_folder_path}?(Y/N):').capitalize()
+                #Delete User from machine
+                if user_confirmation == 'Y':
+                    check_running_processes()
+                    #Not Using Shutil to avoid Malware Alerts
+                    user_confirmation = input(f'Would you like to delete {user_folder_path}?(Y/N):').capitalize()
+                    # Remove User Folder from c:\Users
+                    try:
+                        os.system(f"rmdir {user_folder_path} /s")
+                    except:
+                        print('No User folder')
+                    #Try to create a temp directory
+                    try:
+                        os.mkdir('C:\\Temp')
+                    except:
+                        print("Temp Folder Exists")
+                    os.chdir('C:\\Temp')
+                    #Delete User from Registry
+                    winreg.DeleteKey(base_key, user_sid)
+                    #Create log of Deleted Files
+                    with open('profilemgr.txt','a+') as log_file:
+                        log_file.write(f'{user_folder_path}: Deleted on {get_current_datetime()}\n using ')
+                    break
+                #If User Says no
+                elif user_confirmation == 'N':
+                    #Display in console
+                    print('Finding Next Profile')
+                    break
+                #Check if entry is valid
+                else:
+                    #Display error
+                    print('Please Enter Valid Answer')
+            i += 1
+    #Except windows error and display them in console
+    except WindowsError as e:
+        print(e)
+
+delete_user_profiles()
